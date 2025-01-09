@@ -44,20 +44,6 @@ conversation = ConversationChain(
     memory=memory
 )
 
-# Function to generate an image using DALL·E
-def generate_recipe_image(recipe_name):
-    try:
-        image_prompt = f"A beautifully styled and appetizing photo of {recipe_name}, professional food photography."
-        response = openai.Image.create(
-            prompt=image_prompt,
-            n=1,
-            size="512x512"
-        )
-        return response['data'][0]['url']
-    except Exception as e:
-        print(f"Error generating image: {e}")
-        return None
-
 # Function to save chat history
 def save_chat_history(chat_history, folder_path="chat_data"):
     if not os.path.exists(folder_path):
@@ -67,11 +53,7 @@ def save_chat_history(chat_history, folder_path="chat_data"):
         for entry in chat_history:
             user_message = entry[0]
             bot_response = entry[1]
-            if isinstance(bot_response, tuple):
-                response_text, _ = bot_response
-                file.write(f"User: {user_message}\nResponse: {response_text}\n\n")
-            else:
-                file.write(f"User: {user_message}\nResponse: {bot_response}\n\n")
+            file.write(f"User: {user_message}\nResponse: {bot_response}\n\n")
     return "Chat history saved successfully!"
 
 # Chatbot function
@@ -82,33 +64,26 @@ def recipe_chatbot(user_input):
             # Extract and summarize the chat history from memory
             chat_history = memory.chat_memory.messages
             if not chat_history:
-                return "There are no previous steps yet.", None
+                return "There are no previous steps yet."
 
             history_summary = "\n".join([f"{msg.type.capitalize()}: {msg.content}" for msg in chat_history])
-            return f"Here are your previous steps so far:\n\n{history_summary}", None
+            return f"Here are your previous steps so far:\n\n{history_summary}"
 
         # Check for animal food-related queries
         animal_keywords = ["dog", "cat", "animal", "pet"]
         if any(keyword in user_input.lower() for keyword in animal_keywords):
-            return "I only assist with human food recipes. Please ask about cooking or recipes for humans!", None
+            return "I only assist with human food recipes. Please ask about cooking or recipes for humans!"
 
         # Check for greeting messages
         greetings = ["hi", "hello", "hey"]
         if user_input.strip().lower() in greetings:
-            return "Hello! How can I assist you with recipes today?", None
+            return "Hello! How can I assist you with recipes today?"
 
         # Generate chatbot response
         response = conversation.run(input=user_input)
-
-        # Use the user input as the recipe name for generating images
-        recipe_name = user_input.strip().lower()
-
-        # Generate a recipe image
-        image_url = generate_recipe_image(recipe_name)
-
-        return response, image_url
+        return response
     except Exception as e:
-        return f"Error: {str(e)}", None
+        return f"Error: {str(e)}"
 
 # Gradio Interface
 with gr.Blocks(css="""
@@ -226,11 +201,8 @@ with gr.Blocks(css="""
             return chat_history, ""
 
         # Generate recipe-related responses
-        response, image_url = recipe_chatbot(input_text)
-        if image_url:
-            chat_history.append((input_text, (response, f"![]({image_url})")))
-        else:
-            chat_history.append((input_text, response))
+        response = recipe_chatbot(input_text)
+        chat_history.append((input_text, response))
         return chat_history, ""
 
     def save_data(chat_history):
